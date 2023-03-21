@@ -8,12 +8,29 @@ from torch.utils.data import DataLoader
 import tvm
 from tvm import relay
 
-from .mcunetv3_wrapper import (
-    build_mcu_model,
+sys.path.append('../../algorithm')
+sys.path.append('C:/Users/HP/Desktop/Master_Thesis/tiny-training')
+
+#from .mcunetv3_wrapper import (
+#    build_mcu_model,
+#    configs,
+#    load_config_from_file,
+#    update_config_from_args,
+#    update_config_from_unknown_args,
+#    QuantizedConv2dDiff,
+#    QuantizedMbBlockDiff,
+#    ScaledLinear,
+#    QuantizedAvgPoolDiff,
+#)
+
+from algorithm.core.model import build_mcu_model
+from algorithm.core.utils.config import (
     configs,
     load_config_from_file,
     update_config_from_args,
     update_config_from_unknown_args,
+)
+from algorithm.quantize.quantized_ops_diff import (
     QuantizedConv2dDiff,
     QuantizedMbBlockDiff,
     ScaledLinear,
@@ -21,8 +38,9 @@ from .mcunetv3_wrapper import (
 )
 
 
+
 def build_quantized_model(net_name="mbv2-w0.35", num_classes=10):
-    load_config_from_file("configs/transfer.yaml")
+    load_config_from_file("C:/Users/HP/Desktop/Master_Thesis/tiny-training/algorithm/configs/transfer.yaml")
     configs["net_config"]["net_name"] = "dscnn_te_customized"
     configs["net_config"]["mcu_head_type"] = "quantized"
 
@@ -52,9 +70,7 @@ build_quantized_mbv2 = functools.partial(build_quantized_model, net_name="mbv2-w
 build_quantized_proxyless = functools.partial(
     build_quantized_model, net_name="proxyless-w0.3"
 )
-build_quantized_dscnn = functools.partial(
-    build_quantized_model, net_name="dscnn_te_customized"
-)
+build_quantized_dscnn = functools.partial(build_quantized_model, net_name="dscnn_te_customized")
 
 if __name__ == "__main__":
     net, rs = build_quantized_mbv2(num_classes=10)

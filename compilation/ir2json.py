@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import tvm
 from tvm import relay
 
-from compilation.mod import mod_load, mod_save, ComputeDAG
-from compilation.utils import from_pytorch
-from compilation.serialize import SerializeVisitor
+from mod import mod_load, mod_save, ComputeDAG
+from utils import from_pytorch
+from serialize import SerializeVisitor
 
 def translate_pth_net(
     net,
@@ -108,6 +108,7 @@ if __name__ == "__main__":
     import os, sys
 
     mod_path = "tmp/lenet/bias_only-1x1x32x32.ir"
+    mod_path = "C:/Users/HP/Desktop/Master_Thesis/tiny-training/compilation/ir_zoos/dscnn/sparse_bp-49kb-1x1x49x10.ir"
     # mod_path = "tmp/lenet/weights.param"
 
     if len(sys.argv) >= 2:

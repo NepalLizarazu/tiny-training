@@ -1,10 +1,11 @@
-import os, os.path as osp
+import os, sys, os.path as osp
 from copy import deepcopy
 import json
 from textwrap import indent
 from types import new_class
 from pandas import isna
-from sklearn.preprocessing import KernelCenterer
+#from sklearn.preprocessing import KernelCenterer
+sys.path.append('C:/Users/HP/Desktop/Master_Thesis/tiny-training/compilation')
 
 import torch
 import torch.nn as nn
@@ -18,8 +19,9 @@ import tvm
 from tvm import relay, te
 from tvm.contrib import graph_executor
 
-from ..mod import mod_save, mod_load
-from ..autodiff.mcuop import *
+#from ..mod import mod_save, mod_load
+#from ..autodiff.mcuop import *
+from autodiff.mcuop import *
 
 from .mcunetv3_wrapper import (
     QuantizedConv2dDiff,
