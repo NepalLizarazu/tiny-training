@@ -42,6 +42,9 @@ from algorithm.quantize.quantized_ops_diff import (
 def build_quantized_model(net_name="mbv2-w0.35", num_classes=10):
     load_config_from_file("C:/Users/HP/Desktop/Master_Thesis/tiny-training/algorithm/configs/transfer.yaml")
     configs["net_config"]["net_name"] = "dscnn_te_customized"
+    configs["net_config"]["net_name"] = "proxyless-w0.3"
+    print("Generating files for: ", net_name)
+    configs["net_config"]["net_name"] = net_name
     configs["net_config"]["mcu_head_type"] = "quantized"
 
     subnet = build_mcu_model()

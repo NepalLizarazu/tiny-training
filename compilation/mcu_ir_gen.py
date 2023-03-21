@@ -12,9 +12,13 @@ from convert import (
 
 # some configs
 model_name = "dscnn"
+model_name = "mbv2"
 #rs = 128
 rs1 = 49
 rs2 = 10
+rs1 = 128
+rs2 = 128
+n_in_channels = 3
 num_classes = 10
 int8_bp = False
 
@@ -87,7 +91,7 @@ elif model_name == "dscnn":
             "enable_backward_config": 1, "n_bias_update": 5, "n_weight_update": 0, "weight_update_ratio": [1, 1, 0, 0, 0], "manual_weight_idx": [1, 2, 3, 4, 5], "weight_select_criteria": "magnitude+", "pw1_weight_only": 0,
         },
     }
-fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, 1, rs1, rs2], num_classes=num_classes)
+fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, n_in_channels, rs1, rs2], num_classes=num_classes)
 
 from tvm.relay import ExprFunctor, ExprMutator, ExprVisitor
 from tvm import relay
@@ -132,7 +136,7 @@ def extract_const_from_mod(mod):
     new_func, consts = ExtractMetaConstants().extract_constants(func)
     return consts
 
-fshape_str = "x".join([str(_) for _ in [1, 1, rs1, rs2]])
+fshape_str = "x".join([str(_) for _ in [1, n_in_channels, rs1, rs2]])
 mod_save(fwd_mod, params=real_params, path=path, mod_name=f"fwd-{fshape_str}.ir")
 
 method = "last_only"
