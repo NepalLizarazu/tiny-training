@@ -23,7 +23,7 @@ from .mcunetv3_wrapper import (
 
 def build_quantized_model(net_name="mbv2-w0.35", num_classes=10):
     load_config_from_file("configs/transfer.yaml")
-    configs["net_config"]["net_name"] = "mbv2-w0.35"
+    configs["net_config"]["net_name"] = "dscnn_te_customized"
     configs["net_config"]["mcu_head_type"] = "quantized"
 
     subnet = build_mcu_model()
@@ -51,6 +51,9 @@ build_quantized_mcunet = functools.partial(
 build_quantized_mbv2 = functools.partial(build_quantized_model, net_name="mbv2-w0.35")
 build_quantized_proxyless = functools.partial(
     build_quantized_model, net_name="proxyless-w0.3"
+)
+build_quantized_dscnn = functools.partial(
+    build_quantized_model, net_name="dscnn_te_customized"
 )
 
 if __name__ == "__main__":

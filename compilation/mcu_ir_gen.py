@@ -1,10 +1,11 @@
 import os
 import os.path as osp
 import json
-from compilation.convert import (
+from convert import (
     build_quantized_mcunet,
     build_quantized_mbv2,
     build_quantized_proxyless,
+    build_quantized_dscnn,
     pth_model_to_ir,
     generated_backward_graph
 )
@@ -75,6 +76,14 @@ elif model_name == "proxyless":
         "148kb": {
             'enable_backward_config': 1, 'n_bias_update': 45, 'n_weight_update': 0, 'weight_update_ratio': [1, 1, 1, 1, 1, 1, 1, 1], 'manual_weight_idx': [36, 39, 42, 45, 48, 51, 54, 57], 'weight_select_criteria': 'magnitude+', 'pw1_weight_only': 0
         }
+    }
+elif model_name == "dscnn":
+    path = "ir_zoos/dscnn"
+    model, _ = build_quantized_dscnn(num_classes=num_classes)
+    sparse_update_config = {
+        "49kb": {
+            "enable_backward_config": 1, "n_bias_update": 5, "n_weight_update": 0, "weight_update_ratio": [1, 1, 0, 0, 0], "manual_weight_idx": [1, 2, 3, 4, 5], "weight_select_criteria": "magnitude+", "pw1_weight_only": 0,
+        },
     }
 fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, 3, rs, rs], num_classes=num_classes)
 
