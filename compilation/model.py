@@ -21,7 +21,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import npy_to_txt
+#from utils import npy_to_txt
 
 
 class DSCNN(torch.nn.Module):
@@ -189,22 +189,12 @@ class DSCNN(torch.nn.Module):
         # return F.softmax(x, dim=1) 
 
 class DSCNN_TE(torch.nn.Module):
+    reg_count = 0
     def __init__(self, use_bias=True):
         super(DSCNN_TE, self).__init__()
 
         use_bias = True
-        max_weights = [torch.zeros(64) for i in range(10)]
-        self.register_buffer('max_weights', torch.stack(max_weights))
         
-        min_weights = [torch.zeros(64) for i in range(10)]
-        self.register_buffer('min_weights', torch.stack(min_weights))
-
-        max_in_out = [torch.tensor(0) for i in range(20)]
-        self.register_buffer('max_in_out', torch.stack(max_in_out))
-
-        min_in_out = [torch.tensor(0) for i in range(20)]
-        self.register_buffer('min_in_out', torch.stack(min_in_out))
-
         self.first_conv = torch.nn.Conv2d(in_channels = 1, out_channels = 64, kernel_size = (7, 7), stride = (2, 2), padding = (3,3),bias = use_bias)
         self.bn1   = torch.nn.BatchNorm2d(64)
         self.relu1 = torch.nn.ReLU()
@@ -239,83 +229,326 @@ class DSCNN_TE(torch.nn.Module):
 
         self.avg   = torch.nn.AvgPool2d(kernel_size=(25, 5), stride=1)
         self.fc1   = torch.nn.Linear(64, 10, bias=use_bias)
-        # self.soft  = torch.nn.Softmax(dim=1)
-        # self.soft = F.log_softmax(x, dim=1)
+        
+        max_weights = []
+        min_weights = []
+        max_in_out = []
+        min_in_out = []
 
+        for name, module in self.named_modules():
+            if name[:5] == "first" or name[:5] == "depth" or name[:5] == "point":
+                max_weights.append(torch.zeros(module.out_channels))
+                min_weights.append(torch.zeros(module.out_channels))
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+            if name[:2] == "fc":
+                max_weights.append(torch.zeros(module.out_features))
+                min_weights.append(torch.zeros(module.out_features)) 
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))  
 
-        # CONV2D replacing Block1 for evaluation purposes
-        # self.pad2  = nn.ConstantPad2d((1, 1, 1, 1), value=0.)
-        # self.conv2 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), groups = 1, bias = use_bias)
-        # self.bn2   = torch.nn.BatchNorm2d(64)
-        # self.relu2 = torch.nn.ReLU()
+        self.register_buffer('max_weights', torch.cat(max_weights))
+        
+        self.register_buffer('min_weights', torch.cat(min_weights))
+
+        self.register_buffer('max_in_out', torch.stack(max_in_out))
+
+        self.register_buffer('min_in_out', torch.stack(min_in_out))
+
         
     def forward(self, x, save = False):
-        self.set_max_min_in_out(x, 0)
-        x = self.first_conv(x)
-        x = self.bn1(x)
-        self.set_max_min_in_out(x, 1)
-        x = self.relu1(x)
-        
-        self.set_max_min_in_out(x, 2)
-        x = self.depth1(x)
-        x = self.bn2(x)
-        self.set_max_min_in_out(x, 3)
-        x = self.relu2(x)
-        self.set_max_min_in_out(x, 4)
-        x = self.pointw1(x)
-        x = self.bn3(x)
-        self.set_max_min_in_out(x, 5)
-        x = self.relu3(x)
-        
-        self.set_max_min_in_out(x, 6)
-        x = self.depth2(x)
-        x = self.bn4(x)
-        self.set_max_min_in_out(x, 7)
-        x = self.relu4(x)
-        self.set_max_min_in_out(x, 8)
-        x = self.pointw2(x)
-        x = self.bn5(x)
-        self.set_max_min_in_out(x, 9)
-        x = self.relu5(x)
-        
-        self.set_max_min_in_out(x, 10)
-        x = self.depth3(x)
-        x = self.bn6(x)
-        self.set_max_min_in_out(x, 11)
-        x = self.relu6(x)
-        self.set_max_min_in_out(x, 12)
-        x = self.pointw3(x)
-        x = self.bn7(x)
-        self.set_max_min_in_out(x, 13)
-        x = self.relu7(x)
-        
-        self.set_max_min_in_out(x, 14)
-        x = self.depth4(x)
-        x = self.bn8(x)
-        self.set_max_min_in_out(x, 14)
-        x = self.relu8(x)   
-        self.set_max_min_in_out(x, 15)
-        x = self.pointw4(x)
-        x = self.bn9(x)
-        self.set_max_min_in_out(x, 16)
-        x = self.relu9(x)   
-        
-        self.set_max_min_in_out(x, 17)
-        x = self.avg(x)
-        x = torch.flatten(x, 1) 
-        self.set_max_min_in_out(x, 18)
-        x = self.fc1(x)
-        self.set_max_min_in_out(x, 19)
+        if save:
+            self.set_max_min_in_out(x)
+            x = self.first_conv(x)
+            x = self.bn1(x)
+            self.set_max_min_in_out(x)
+            x = self.relu1(x)
             
+            self.set_max_min_in_out(x)
+            x = self.depth1(x)
+            x = self.bn2(x)
+            self.set_max_min_in_out(x)
+            x = self.relu2(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw1(x)
+            x = self.bn3(x)
+            self.set_max_min_in_out(x)
+            x = self.relu3(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth2(x)
+            x = self.bn4(x)
+            self.set_max_min_in_out(x)
+            x = self.relu4(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw2(x)
+            x = self.bn5(x)
+            self.set_max_min_in_out(x)
+            x = self.relu5(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth3(x)
+            x = self.bn6(x)
+            self.set_max_min_in_out(x)
+            x = self.relu6(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw3(x)
+            x = self.bn7(x)
+            self.set_max_min_in_out(x)
+            x = self.relu7(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth4(x)
+            x = self.bn8(x)
+            self.set_max_min_in_out(x)
+            x = self.relu8(x)   
+            self.set_max_min_in_out(x)
+            x = self.pointw4(x)
+            x = self.bn9(x)
+            self.set_max_min_in_out(x)
+            x = self.relu9(x)   
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            self.set_max_min_in_out(x)
+            x = self.fc1(x)
+            self.set_max_min_in_out(x, True)
+
+        else:
+            x = self.first_conv(x)
+            x = self.bn1(x)
+            x = self.relu1(x)
+            
+            x = self.depth1(x)
+            x = self.bn2(x)
+            x = self.relu2(x)
+            x = self.pointw1(x)
+            x = self.bn3(x)
+            x = self.relu3(x)
+            
+            x = self.depth2(x)
+            x = self.bn4(x)
+            x = self.relu4(x)
+            x = self.pointw2(x)
+            x = self.bn5(x)
+            x = self.relu5(x)
+            
+            x = self.depth3(x)
+            x = self.bn6(x)
+            x = self.relu6(x)
+            x = self.pointw3(x)
+            x = self.bn7(x)
+            x = self.relu7(x)
+            
+            x = self.depth4(x)
+            x = self.bn8(x)
+            x = self.relu8(x)   
+            x = self.pointw4(x)
+            x = self.bn9(x)
+            x = self.relu9(x)   
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            x = self.fc1(x)
+        
         return x # To be compatible with Dory
         # return F.log_softmax(x, dim=1)
         # return F.softmax(x, dim=1) 
 
-    def set_max_min_in_out (self, x, i):
-        if (self.max_in_out[i] < torch.max(x)):
-            self.max_in_out[i] = torch.max(x)
-        if (self.min_in_out[i] > torch.min(x)):
-            self.min_in_out[i] = torch.min(x)
+    def set_max_min_in_out (self, x, last = False):
+        if (self.max_in_out[self.reg_count] < torch.max(x)):
+            self.max_in_out[self.reg_count] = torch.max(x)
+        if (self.min_in_out[self.reg_count] > torch.min(x)):
+            self.min_in_out[self.reg_count] = torch.min(x)
+        if last:
+            self.reg_count = 0
+        else:
+            self.reg_count +=1
+
+class DSCNN_TE_3x3_49x10(torch.nn.Module):
+    reg_count = 0
+    def __init__(self, use_bias=True):
+        super(DSCNN_TE_3x3_49x10, self).__init__()
+
+        use_bias = True
+        
+        self.first_conv = torch.nn.Conv2d(in_channels = 1, out_channels = 64, kernel_size = (3, 3), stride = (2, 2), padding = (1,1),bias = use_bias)
+        self.bn1   = torch.nn.BatchNorm2d(64)
+        self.relu1 = torch.nn.ReLU()
+
+        self.depth1 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (7, 7), stride = (1, 1), padding = 3, groups = 64, bias = use_bias)
+        self.bn2   = torch.nn.BatchNorm2d(64)
+        self.relu2 = torch.nn.ReLU()
+        self.pointw1 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn3   = torch.nn.BatchNorm2d(64)
+        self.relu3 = torch.nn.ReLU()
+
+        self.depth2 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn4   = torch.nn.BatchNorm2d(64)
+        self.relu4 = torch.nn.ReLU()
+        self.pointw2 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn5   = torch.nn.BatchNorm2d(64)
+        self.relu5 = torch.nn.ReLU()
+
+        self.depth3 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn6   = torch.nn.BatchNorm2d(64)
+        self.relu6 = torch.nn.ReLU()
+        self.pointw3 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn7   = torch.nn.BatchNorm2d(64)
+        self.relu7 = torch.nn.ReLU()
+
+        self.depth4 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn8   = torch.nn.BatchNorm2d(64)
+        self.relu8 = torch.nn.ReLU()
+        self.pointw4 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn9   = torch.nn.BatchNorm2d(64)
+        self.relu9 = torch.nn.ReLU()
+
+        self.avg   = torch.nn.AvgPool2d(kernel_size=(25, 5), stride=1)
+        self.fc1   = torch.nn.Linear(64, 10, bias=use_bias)
+        
+        max_weights = []
+        min_weights = []
+        max_in_out = []
+        min_in_out = []
+
+        for name, module in self.named_modules():
+            if name[:5] == "first" or name[:5] == "depth" or name[:5] == "point":
+                max_weights.append(torch.zeros(module.out_channels))
+                min_weights.append(torch.zeros(module.out_channels))
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+            if name[:2] == "fc":
+                max_weights.append(torch.zeros(module.out_features))
+                min_weights.append(torch.zeros(module.out_features)) 
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(0))  
+
+        self.register_buffer('max_weights', torch.cat(max_weights))
+        
+        self.register_buffer('min_weights', torch.cat(min_weights))
+
+        self.register_buffer('max_in_out', torch.stack(max_in_out))
+
+        self.register_buffer('min_in_out', torch.stack(min_in_out))
+
+        
+    def forward(self, x, save = False):
+        if save:
+            self.set_max_min_in_out(x)
+            x = self.first_conv(x)
+            x = self.bn1(x)
+            self.set_max_min_in_out(x)
+            x = self.relu1(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth1(x)
+            x = self.bn2(x)
+            self.set_max_min_in_out(x)
+            x = self.relu2(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw1(x)
+            x = self.bn3(x)
+            self.set_max_min_in_out(x)
+            x = self.relu3(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth2(x)
+            x = self.bn4(x)
+            self.set_max_min_in_out(x)
+            x = self.relu4(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw2(x)
+            x = self.bn5(x)
+            self.set_max_min_in_out(x)
+            x = self.relu5(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth3(x)
+            x = self.bn6(x)
+            self.set_max_min_in_out(x)
+            x = self.relu6(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw3(x)
+            x = self.bn7(x)
+            self.set_max_min_in_out(x)
+            x = self.relu7(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth4(x)
+            x = self.bn8(x)
+            self.set_max_min_in_out(x)
+            x = self.relu8(x)   
+            self.set_max_min_in_out(x)
+            x = self.pointw4(x)
+            x = self.bn9(x)
+            self.set_max_min_in_out(x)
+            x = self.relu9(x)   
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            self.set_max_min_in_out(x)
+            x = self.fc1(x)
+            self.set_max_min_in_out(x, True)
+
+        else:
+            x = self.first_conv(x)
+            x = self.bn1(x)
+            x = self.relu1(x)
+            
+            x = self.depth1(x)
+            x = self.bn2(x)
+            x = self.relu2(x)
+            x = self.pointw1(x)
+            x = self.bn3(x)
+            x = self.relu3(x)
+            
+            x = self.depth2(x)
+            x = self.bn4(x)
+            x = self.relu4(x)
+            x = self.pointw2(x)
+            x = self.bn5(x)
+            x = self.relu5(x)
+            
+            x = self.depth3(x)
+            x = self.bn6(x)
+            x = self.relu6(x)
+            x = self.pointw3(x)
+            x = self.bn7(x)
+            x = self.relu7(x)
+            
+            x = self.depth4(x)
+            x = self.bn8(x)
+            x = self.relu8(x)   
+            x = self.pointw4(x)
+            x = self.bn9(x)
+            x = self.relu9(x)   
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            x = self.fc1(x)
+        
+        return x # To be compatible with Dory
+        # return F.log_softmax(x, dim=1)
+        # return F.softmax(x, dim=1) 
+
+    def set_max_min_in_out (self, x, last = False):
+        if (self.max_in_out[self.reg_count] < torch.max(x)):
+            self.max_in_out[self.reg_count] = torch.max(x)
+        if (self.min_in_out[self.reg_count] > torch.min(x)):
+            self.min_in_out[self.reg_count] = torch.min(x)
+        if last:
+            self.reg_count = 0
+        else:
+            self.reg_count +=1
 
 class DSCNN_TE_NoBN_3x3(torch.nn.Module):
     def __init__(self, use_bias=True):

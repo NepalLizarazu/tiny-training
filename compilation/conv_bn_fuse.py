@@ -1,6 +1,10 @@
 import torch
 import copy
-from model import DSCNN_TE
+from utils2 import remove_txt, parameter_generation
+import dataset
+from train import Train
+from model import DSCNN_TE_7x7_49x10
+from model import DSCNN_TE_3x3_49x10
 
 def fuse_conv_bn_eval(conv, bn, transpose=False):
     #assert(not (conv.training or bn.training)), "Fusion only for eval!"
@@ -31,12 +35,47 @@ def fuse_conv_bn_weights(conv_w, conv_b, bn_rm, bn_rv, bn_eps, bn_w, bn_b, trans
     
     return torch.nn.Parameter(fused_conv_w, conv_w.requires_grad), torch.nn.Parameter(fused_conv_b, conv_b.requires_grad)
 
+def set_max_min_weight_inst(model):
+        i = 0
+        for name, param in model.named_parameters():
+            #Over the layers weights
+            if (str(name)[-6:] == 'weight' and str(name)[:2] != 'bn'):
+                out_ch = param.shape[0]
+                #Over the output channels i.e. first dimension of the weight
+                for j in range(out_ch):
+                    model.max_weights[i+j] = torch.max(param[j]).data
+                    model.min_weights[i+j] = torch.min(param[j]).data
+                i += out_ch
+
+def reset_min_max_activations(model):
+        for i in range(model.max_in_out.shape[0]):
+            model.max_in_out[i] = torch.tensor(-1000.)
+            model.min_in_out[i] = torch.tensor(1000.)
+
 if __name__ == '__main__':
-    file_name = "DSCNN_BN_7x7_40_92.1875"
-    param_path = "../kws-on-pulp/quantization/"+file_name+".pth"
-    model = DSCNN_TE()
+    file_name = "dscnn_40_pw_7x7_49x10_param"
+    file_name = "dscnn_40_pw_7x7_49x10_param_94.53125"
+    file_name = "dscnn_40_3x3_7x7_49x10_param_90.625"
+    param_path = "../../kws-on-pulp/quantization/"+file_name+".pth"
+    
+    model = DSCNN_TE_7x7_49x10() #pw_7x7
+    model = DSCNN_TE_3x3_49x10() #3x3_7x7
+
+    device = torch.device('cpu')
+    print (torch.version.__version__)
+    print(device)
+    # Dataset set up
+    training_parameters, data_processing_parameters = parameter_generation()  # To be parametrized
+    audio_processor = dataset.AudioProcessor(training_parameters, data_processing_parameters)
+    train_size = audio_processor.get_size('training')
+    valid_size = audio_processor.get_size('validation')
+    test_size = audio_processor.get_size('testing')
+    print("Dataset split (Train/valid/test): "+ str(train_size) +"/"+str(valid_size) + "/" + str(test_size))
+    trainining_environment = Train(audio_processor, training_parameters, model, device)
+
     model.load_state_dict(torch.load(param_path))
     model.eval()
+    #trainining_environment.validate(model, 'validation', 128, register_min_max=False)
     previous_module = None
     fused_modules = []
     pr = False
@@ -56,7 +95,10 @@ if __name__ == '__main__':
             i+=1
 
         previous_module = module
-    
+    set_max_min_weight_inst(model)
+
+    reset_min_max_activations(model)
+    trainining_environment.validate(model, 'validation', 128, register_min_max=True)
     torch.save(model.state_dict(), file_name+"_fused.pkl")
     
 
