@@ -371,6 +371,7 @@ class DSCNN_TE(torch.nn.Module):
 
 class DSCNN_TE_3x3_49x10(torch.nn.Module):
     reg_count = 0
+    test = 0
     def __init__(self, use_bias=True):
         super(DSCNN_TE_3x3_49x10, self).__init__()
 
@@ -420,17 +421,17 @@ class DSCNN_TE_3x3_49x10(torch.nn.Module):
             if name[:5] == "first" or name[:5] == "depth" or name[:5] == "point":
                 max_weights.append(torch.zeros(module.out_channels))
                 min_weights.append(torch.zeros(module.out_channels))
-                max_in_out.append(torch.tensor(0))
-                max_in_out.append(torch.tensor(0))
-                min_in_out.append(torch.tensor(0))
-                min_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(-1000.))
+                max_in_out.append(torch.tensor(-1000.))
+                min_in_out.append(torch.tensor(1000.))
+                min_in_out.append(torch.tensor(1000.))
             if name[:2] == "fc":
                 max_weights.append(torch.zeros(module.out_features))
                 min_weights.append(torch.zeros(module.out_features)) 
-                max_in_out.append(torch.tensor(0))
-                max_in_out.append(torch.tensor(0))
-                min_in_out.append(torch.tensor(0))
-                min_in_out.append(torch.tensor(0))  
+                max_in_out.append(torch.tensor(-1000.))
+                max_in_out.append(torch.tensor(-1000.))
+                min_in_out.append(torch.tensor(1000.))
+                min_in_out.append(torch.tensor(1000.))  
 
         self.register_buffer('max_weights', torch.cat(max_weights))
         
@@ -441,55 +442,355 @@ class DSCNN_TE_3x3_49x10(torch.nn.Module):
         self.register_buffer('min_in_out', torch.stack(min_in_out))
 
         
-    def forward(self, x, save = False):
-        if save:
+    def forward(self, x, save = False, quantized = False, scales_zeros = None): #Only in this PC BN are commented, in the server the BN must remain for training
+        if save and not quantized:
+            if self.test == 0:
+                print("Input: ",x[0,0])
+                x[0,0] = torch.tensor([[130.38089,131.43936,129.67656,128.64754,129.50114,129.33595,129.139,129.07536,129.11879,128.89668],[132.14569,131.96643,130.01714,128.8141,129.21088,127.99666,128.78825,128.42905,128.0869,127.49982],[128.35165,129.80748,129.42358,129.08359,128.1454,128.36932,127.58107,126.86836,127.245834,128.79285],[128.81448,130.77385,129.60121,129.37752,128.90532,127.70365,127.40197,127.98097,128.34013,129.19919],[131.13123,131.54993,128.80214,129.41241,127.74812,126.53058,127.69071,128.06276,128.24432,128.8354],[131.53786,130.96332,129.11359,129.21504,129.23364,128.54529,128.88281,128.34442,128.06316,128.1965],[128.05711,130.13252,128.70697,128.45973,130.10385,130.82455,129.74408,128.42085,128.2472,128.26],[128.1312,129.08397,128.58223,128.35168,126.587906,127.375854,128.19754,129.10364,128.17268,127.70088],[129.35075,130.01837,128.35463,128.83736,127.761284,128.48302,129.09694,128.60547,128.76706,127.85829],[128.41386,129.86687,129.89742,128.80344,128.53549,127.90915,128.96712,128.32274,127.7653,128.52193],[129.22514,130.7849,129.99434,128.1142,128.86398,128.30019,129.2305,127.81578,128.22368,129.3372],[131.29575,132.11177,128.73656,129.18912,129.13423,128.92043,128.02274,127.06772,127.450516,128.05367],[131.26366,131.32031,129.42886,128.97224,128.7604,128.23688,128.22533,128.84297,127.66184,128.86665],[129.78667,130.57726,129.54733,130.1221,130.67233,128.01291,128.61336,128.22899,127.80336,127.01785],[130.9817,132.0546,131.24615,128.04715,128.80269,129.11694,127.64418,128.29086,129.36479,128.03162],[129.22012,131.18294,129.45885,130.34448,129.68335,129.2046,128.4853,128.04555,127.959206,126.60313],[127.382545,129.05104,128.95412,129.24907,128.70264,129.36572,128.29893,128.0956,127.88728,128.08362],[129.18799,129.7071,129.47694,129.65155,127.47723,127.28498,128.89212,128.68385,127.88265,127.60673],[130.55862,131.02905,129.46361,129.56233,129.17644,128.35544,127.36579,126.99023,128.1641,128.65002],[128.68651,131.86043,130.59073,128.96101,129.91628,130.42805,128.9516,127.41191,128.76907,128.9656],[127.94517,129.92342,130.31711,129.21799,128.2734,127.32934,126.97719,127.454056,128.48653,129.25325],[129.73463,131.57393,130.32227,129.3245,128.01846,127.99733,128.88972,126.95246,127.71982,126.68717],[127.62111,128.41125,128.66315,129.29437,128.96425,127.355896,128.52422,128.45409,127.9129,128.27483],[128.9328,131.4582,130.66963,131.0656,127.86458,128.3115,127.93027,129.05913,128.71132,128.61723],[131.08109,131.3194,130.62816,130.07663,127.38624,126.660934,128.65234,127.46814,127.96135,126.84312],[130.06282,131.89987,129.82843,130.67426,128.76277,129.59354,128.89397,127.37855,128.3633,128.8769],[131.58694,130.07455,128.51755,128.88132,128.03683,127.99954,127.41392,128.2849,127.8067,128.33197],[129.27559,130.74522,129.21829,128.32835,126.95609,127.24045,128.20753,126.89045,128.31631,128.98364],[128.7202,131.31871,130.45091,129.52812,127.71568,129.55162,129.5272,127.751015,128.2281,129.27512],[130.69963,131.48055,128.8031,128.81729,128.98569,128.74188,127.21871,127.81623,128.79608,129.49234],[131.4759,132.3811,128.9594,129.81427,129.59752,128.54005,128.2609,127.82605,127.52885,127.02463],[136.96071,136.26843,134.33806,130.36679,127.8647,126.15627,125.26397,127.50848,127.49243,127.31677],[138.6253,138.53914,132.72159,130.753,126.59739,125.84584,126.521164,126.90665,126.73005,127.42356],[140.52264,139.45036,134.37659,131.32686,124.94601,125.45653,124.89712,126.12991,128.16473,129.07458],[148.95009,138.87361,134.4575,130.02313,120.327194,125.77954,127.348145,127.073166,130.22685,130.053],[153.97717,138.07811,131.6171,126.93567,120.50964,125.472,129.12758,127.01421,129.44717,130.13475],[155.64886,136.95386,129.2486,127.93064,120.6698,125.86978,130.99641,128.45712,127.98936,128.72221],[152.3936,137.04018,130.2789,128.15215,120.36439,126.085464,131.00851,128.74878,127.70343,127.96544],[151.36586,138.36502,128.6467,129.6366,121.04358,127.08364,130.16263,128.35088,126.82116,128.82199],[148.57884,137.67598,129.87448,129.32774,122.97951,126.99945,129.42673,128.7358,127.69691,129.41473],[144.38457,137.38373,132.09015,128.16415,125.35038,126.8733,129.64491,127.877785,126.27705,129.31264],[135.10799,134.86197,132.13268,131.6621,128.5219,125.90094,128.14346,127.42562,127.67985,127.807945],[132.03072,130.99577,131.74574,128.6959,129.6752,127.69522,129.13075,128.14706,128.35507,127.58883],[132.12108,130.70503,133.01549,129.62593,131.80594,127.78311,127.12216,126.63043,127.85326,126.451294],[130.61545,128.98962,129.47429,126.898964,129.6931,126.51575,129.66504,128.00993,129.37575,129.62807],[132.88889,128.60167,130.20937,127.926544,129.88683,127.5016,128.17296,127.75982,130.34598,129.13078],[132.36478,129.33015,130.3931,127.55827,130.1992,126.867424,128.5663,127.50715,129.65144,128.53305],[134.66039,129.95078,130.85008,127.76645,129.91913,126.509766,128.99881,127.584015,128.7468,126.994576],[132.15672,128.27806,130.55762,126.81696,129.64821,127.999954,129.85884,128.74342,128.96924,127.750565]])
             self.set_max_min_in_out(x)
             x = self.first_conv(x)
-            x = self.bn1(x)
             self.set_max_min_in_out(x)
             x = self.relu1(x)
             
             self.set_max_min_in_out(x)
             x = self.depth1(x)
-            x = self.bn2(x)
             self.set_max_min_in_out(x)
             x = self.relu2(x)
             self.set_max_min_in_out(x)
             x = self.pointw1(x)
-            x = self.bn3(x)
             self.set_max_min_in_out(x)
             x = self.relu3(x)
             
             self.set_max_min_in_out(x)
             x = self.depth2(x)
-            x = self.bn4(x)
             self.set_max_min_in_out(x)
             x = self.relu4(x)
             self.set_max_min_in_out(x)
             x = self.pointw2(x)
-            x = self.bn5(x)
             self.set_max_min_in_out(x)
             x = self.relu5(x)
             
             self.set_max_min_in_out(x)
             x = self.depth3(x)
-            x = self.bn6(x)
             self.set_max_min_in_out(x)
             x = self.relu6(x)
             self.set_max_min_in_out(x)
             x = self.pointw3(x)
+            self.set_max_min_in_out(x)
+            x = self.relu7(x)
+
+            self.set_max_min_in_out(x)
+            x = self.depth4(x)
+            self.set_max_min_in_out(x)
+            x = self.relu8(x)   
+            self.set_max_min_in_out(x)
+            x = self.pointw4(x)
+            self.set_max_min_in_out(x)
+            x = self.relu9(x)  
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            self.set_max_min_in_out(x)
+            x = self.fc1(x)
+            self.set_max_min_in_out(x, True)
+            if self.test == 0:
+                print("Final output: ",x[0])
+                self.test = 1
+
+        elif not save and not quantized:
+            x = self.first_conv(x)
+            x = self.bn1(x)
+            x = self.relu1(x)
+            
+            x = self.depth1(x)
+            x = self.bn2(x)
+            x = self.relu2(x)
+            x = self.pointw1(x)
+            x = self.bn3(x)
+            x = self.relu3(x)
+            
+            x = self.depth2(x)
+            x = self.bn4(x)
+            x = self.relu4(x)
+            x = self.pointw2(x)
+            x = self.bn5(x)
+            x = self.relu5(x)
+            
+            x = self.depth3(x)
+            x = self.bn6(x)
+            x = self.relu6(x)
+            x = self.pointw3(x)
             x = self.bn7(x)
+            x = self.relu7(x)
+            
+            x = self.depth4(x)
+            x = self.bn8(x)
+            x = self.relu8(x)   
+            x = self.pointw4(x)
+            x = self.bn9(x)
+            x = self.relu9(x)   
+            
+            x = self.avg(x)
+            x = torch.flatten(x, 1) 
+            x = self.fc1(x)
+
+        elif not save and quantized: #scales_zeros: [w_scales, x_scale, y_scale, x_zero, y_zero]
+            if self.test == 0:
+                x[0,0] = torch.tensor([[130.38089,131.43936,129.67656,128.64754,129.50114,129.33595,129.139,129.07536,129.11879,128.89668],[132.14569,131.96643,130.01714,128.8141,129.21088,127.99666,128.78825,128.42905,128.0869,127.49982],[128.35165,129.80748,129.42358,129.08359,128.1454,128.36932,127.58107,126.86836,127.245834,128.79285],[128.81448,130.77385,129.60121,129.37752,128.90532,127.70365,127.40197,127.98097,128.34013,129.19919],[131.13123,131.54993,128.80214,129.41241,127.74812,126.53058,127.69071,128.06276,128.24432,128.8354],[131.53786,130.96332,129.11359,129.21504,129.23364,128.54529,128.88281,128.34442,128.06316,128.1965],[128.05711,130.13252,128.70697,128.45973,130.10385,130.82455,129.74408,128.42085,128.2472,128.26],[128.1312,129.08397,128.58223,128.35168,126.587906,127.375854,128.19754,129.10364,128.17268,127.70088],[129.35075,130.01837,128.35463,128.83736,127.761284,128.48302,129.09694,128.60547,128.76706,127.85829],[128.41386,129.86687,129.89742,128.80344,128.53549,127.90915,128.96712,128.32274,127.7653,128.52193],[129.22514,130.7849,129.99434,128.1142,128.86398,128.30019,129.2305,127.81578,128.22368,129.3372],[131.29575,132.11177,128.73656,129.18912,129.13423,128.92043,128.02274,127.06772,127.450516,128.05367],[131.26366,131.32031,129.42886,128.97224,128.7604,128.23688,128.22533,128.84297,127.66184,128.86665],[129.78667,130.57726,129.54733,130.1221,130.67233,128.01291,128.61336,128.22899,127.80336,127.01785],[130.9817,132.0546,131.24615,128.04715,128.80269,129.11694,127.64418,128.29086,129.36479,128.03162],[129.22012,131.18294,129.45885,130.34448,129.68335,129.2046,128.4853,128.04555,127.959206,126.60313],[127.382545,129.05104,128.95412,129.24907,128.70264,129.36572,128.29893,128.0956,127.88728,128.08362],[129.18799,129.7071,129.47694,129.65155,127.47723,127.28498,128.89212,128.68385,127.88265,127.60673],[130.55862,131.02905,129.46361,129.56233,129.17644,128.35544,127.36579,126.99023,128.1641,128.65002],[128.68651,131.86043,130.59073,128.96101,129.91628,130.42805,128.9516,127.41191,128.76907,128.9656],[127.94517,129.92342,130.31711,129.21799,128.2734,127.32934,126.97719,127.454056,128.48653,129.25325],[129.73463,131.57393,130.32227,129.3245,128.01846,127.99733,128.88972,126.95246,127.71982,126.68717],[127.62111,128.41125,128.66315,129.29437,128.96425,127.355896,128.52422,128.45409,127.9129,128.27483],[128.9328,131.4582,130.66963,131.0656,127.86458,128.3115,127.93027,129.05913,128.71132,128.61723],[131.08109,131.3194,130.62816,130.07663,127.38624,126.660934,128.65234,127.46814,127.96135,126.84312],[130.06282,131.89987,129.82843,130.67426,128.76277,129.59354,128.89397,127.37855,128.3633,128.8769],[131.58694,130.07455,128.51755,128.88132,128.03683,127.99954,127.41392,128.2849,127.8067,128.33197],[129.27559,130.74522,129.21829,128.32835,126.95609,127.24045,128.20753,126.89045,128.31631,128.98364],[128.7202,131.31871,130.45091,129.52812,127.71568,129.55162,129.5272,127.751015,128.2281,129.27512],[130.69963,131.48055,128.8031,128.81729,128.98569,128.74188,127.21871,127.81623,128.79608,129.49234],[131.4759,132.3811,128.9594,129.81427,129.59752,128.54005,128.2609,127.82605,127.52885,127.02463],[136.96071,136.26843,134.33806,130.36679,127.8647,126.15627,125.26397,127.50848,127.49243,127.31677],[138.6253,138.53914,132.72159,130.753,126.59739,125.84584,126.521164,126.90665,126.73005,127.42356],[140.52264,139.45036,134.37659,131.32686,124.94601,125.45653,124.89712,126.12991,128.16473,129.07458],[148.95009,138.87361,134.4575,130.02313,120.327194,125.77954,127.348145,127.073166,130.22685,130.053],[153.97717,138.07811,131.6171,126.93567,120.50964,125.472,129.12758,127.01421,129.44717,130.13475],[155.64886,136.95386,129.2486,127.93064,120.6698,125.86978,130.99641,128.45712,127.98936,128.72221],[152.3936,137.04018,130.2789,128.15215,120.36439,126.085464,131.00851,128.74878,127.70343,127.96544],[151.36586,138.36502,128.6467,129.6366,121.04358,127.08364,130.16263,128.35088,126.82116,128.82199],[148.57884,137.67598,129.87448,129.32774,122.97951,126.99945,129.42673,128.7358,127.69691,129.41473],[144.38457,137.38373,132.09015,128.16415,125.35038,126.8733,129.64491,127.877785,126.27705,129.31264],[135.10799,134.86197,132.13268,131.6621,128.5219,125.90094,128.14346,127.42562,127.67985,127.807945],[132.03072,130.99577,131.74574,128.6959,129.6752,127.69522,129.13075,128.14706,128.35507,127.58883],[132.12108,130.70503,133.01549,129.62593,131.80594,127.78311,127.12216,126.63043,127.85326,126.451294],[130.61545,128.98962,129.47429,126.898964,129.6931,126.51575,129.66504,128.00993,129.37575,129.62807],[132.88889,128.60167,130.20937,127.926544,129.88683,127.5016,128.17296,127.75982,130.34598,129.13078],[132.36478,129.33015,130.3931,127.55827,130.1992,126.867424,128.5663,127.50715,129.65144,128.53305],[134.66039,129.95078,130.85008,127.76645,129.91913,126.509766,128.99881,127.584015,128.7468,126.994576],[132.15672,128.27806,130.55762,126.81696,129.64821,127.999954,129.85884,128.74342,128.96924,127.750565]])
+                #print("Input: ",x[0,0]) 
+            x = (x/scales_zeros[0][1] + scales_zeros[0][3]).round() #quantize input
+
+            print("Using the quantized model")
+                #print("Input Zero: ", scales_zeros[0][3])
+            x = self.substract_zero(x,scales_zeros)
+            if self.test == 0:
+                print("Quantized input: ", x[0,0])
+            x = self.first_conv(x)
+            #if self.test == 0:
+            #    print("First conv quantized output: ", x[0,0,0,:])
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu1(x)     
+                   
+            x = self.apply_clamp(x)
+            if self.test == 0:
+                print("Input for 2nd layer: ", x[0,:,0,0])
+                print("Weights: ", self.first_conv.weight[:5,:,:,:])
+                print("Biases: ",self.first_conv.bias)
+            #if self.test == 0:
+            #    print("First depth input: ", x[0,0,0,:])   
+              
+            x = self.substract_zero(x,scales_zeros)
+            x = self.depth1(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu2(x)
+            x = self.apply_clamp(x)
+            if self.test == 0:
+                 print("Input for 3rd layer: ", x[0,:,0,0])
+                 print("Weights: ", self.depth1.weight[:5,:,:,:])
+                 print("Biases: ",self.depth1.bias)
+            #    print("First depthwise output: ", x[0,0,0,:])
+            x = self.substract_zero(x,scales_zeros)
+            x = self.pointw1(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu3(x)
+            
+            x = self.apply_clamp(x)
+            if self.test == 0:
+                print("Input for 4th layer: ", x[0,:,0,0])
+                #print("Weights: ", self.pointw1.weight[:5,:,:,:])
+                #print("Biases: ",self.pointw1.bias)
+            #    print("First pointwise output: ", x[0,0,0,:])
+            x = self.substract_zero(x,scales_zeros)
+            x = self.depth2(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu4(x)
+            x = self.apply_clamp(x)
+            if self.test == 0:
+                print("Input for 5th layer: ", x[0,:,0,0])
+            x = self.substract_zero(x,scales_zeros)
+            x = self.pointw2(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu5(x)
+            
+            x = self.apply_clamp(x)
+            x = self.substract_zero(x,scales_zeros)
+            x = self.depth3(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu6(x)
+            x = self.apply_clamp(x)
+            x = self.substract_zero(x,scales_zeros)
+            x = self.pointw3(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu7(x)
+            
+            x = self.apply_clamp(x)
+            x = self.substract_zero(x,scales_zeros)
+            x = self.depth4(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu8(x)
+            x = self.apply_clamp(x)
+            x = self.substract_zero(x,scales_zeros)
+            x = self.pointw4(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros)
+            #x = self.relu9(x)   
+            
+            x = self.apply_clamp(x)
+            if self.test == 0:
+                print("Input for FC: ", x[0,:,0,0])
+            x = self.avg(x)
+            if self.test == 0:
+                print("Output of average: ", x[0])
+                print("Output of average shape: ", x.shape)
+            x = torch.flatten(x, 1) 
+            x = self.substract_zero(x,scales_zeros)
+            x = self.fc1(x)
+            x = self.scaleout_and_convert_into_next_input(x, scales_zeros,True)
+            #x = torch.clamp(x,-128,127)
+            if self.test == 0:
+                print("Final output shape: ", x.shape)
+                print("Final output: ",x[0])
+                print("Weights: ", self.fc1.weight[:5,:])
+                print("Biases: ",self.fc1.bias)
+                print("Scales: ", scales_zeros[9][0]*scales_zeros[9][1]/scales_zeros[9][2])
+                self.test = 1
+        return x # To be compatible with Dory
+        # return F.log_softmax(x, dim=1)
+        # return F.softmax(x, dim=1) 
+
+    def set_max_min_in_out (self, x, last = False):
+        x_v = x
+        #if (self.reg_count == 0):
+        #    x_v = x[:,:,:,1:]
+        if (self.max_in_out[self.reg_count] < torch.max(x_v)):
+            self.max_in_out[self.reg_count] = torch.max(x_v)
+        if (self.min_in_out[self.reg_count] > torch.min(x_v)):
+            self.min_in_out[self.reg_count] = torch.min(x_v)
+        if last:
+            self.reg_count = 0
+        else:
+            self.reg_count +=1 
+    
+    def scaleout_and_convert_into_next_input (self, x, scales_zeros, last = False): #scales_zeros: [w_scales, x_scale, y_scale, x_zero, y_zero]
+        for i in range (x.shape[1]): #N_Channels assuming x has [B, Ch, H, W]
+            x [:,i] = x [:,i] * (scales_zeros[self.reg_count][0][i]*(scales_zeros[self.reg_count][1]/scales_zeros[self.reg_count][2]))
+        qy = (x + scales_zeros[self.reg_count][4]).round()
+        qy = self.apply_clamp(qy)
+    
+        if not last: #Calculate next quantized input
+            qx = scales_zeros[self.reg_count][2]/scales_zeros[self.reg_count+1][1]* F.relu(qy-scales_zeros[self.reg_count][4])+scales_zeros[self.reg_count+1][3]
+            qx = self.apply_clamp(qx)
+            qx = qx.round()
+            self.reg_count +=1 
+        else:
+            qx = qy
+            self.reg_count = 0
+        
+        return qx
+    
+    def substract_zero (self, x, scales_zeros):
+        return x-scales_zeros[self.reg_count][3]
+    
+    def apply_clamp (self, x):
+        y = torch.clamp(x,-128,127)
+        return y
+    
+class DSCNN_TE_7x7_49x10(torch.nn.Module):
+    reg_count = 0
+    test = 0
+    def __init__(self, use_bias=True):
+        super(DSCNN_TE_7x7_49x10, self).__init__()
+
+        use_bias = True
+        
+        #self.first_conv = torch.nn.Conv2d(in_channels = 1, out_channels = 64, kernel_size = (3, 3), stride = (2, 2), padding = (1,1),bias = use_bias)
+        self.first_conv = torch.nn.Conv2d(in_channels = 1, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn1   = torch.nn.BatchNorm2d(64)
+        self.relu1 = torch.nn.ReLU()
+        self.depth1 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (7, 7), stride = (2, 2), padding = 3, groups = 64, bias = use_bias)
+        self.bn2   = torch.nn.BatchNorm2d(64)
+        self.relu2 = torch.nn.ReLU()
+        self.pointw1 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn3   = torch.nn.BatchNorm2d(64)
+        self.relu3 = torch.nn.ReLU()
+
+        self.depth2 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn4   = torch.nn.BatchNorm2d(64)
+        self.relu4 = torch.nn.ReLU()
+        self.pointw2 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn5   = torch.nn.BatchNorm2d(64)
+        self.relu5 = torch.nn.ReLU()
+
+        self.depth3 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn6   = torch.nn.BatchNorm2d(64)
+        self.relu6 = torch.nn.ReLU()
+        self.pointw3 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn7   = torch.nn.BatchNorm2d(64)
+        self.relu7 = torch.nn.ReLU()
+
+        self.depth4 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3, 3), stride = (1, 1), padding = 1, groups = 64, bias = use_bias)
+        self.bn8   = torch.nn.BatchNorm2d(64)
+        self.relu8 = torch.nn.ReLU()
+        self.pointw4 = torch.nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (1, 1), stride = (1, 1), bias = use_bias)
+        self.bn9   = torch.nn.BatchNorm2d(64)
+        self.relu9 = torch.nn.ReLU()
+
+        self.avg   = torch.nn.AvgPool2d(kernel_size=(25, 5), stride=1)
+        self.fc1   = torch.nn.Linear(64, 10, bias=use_bias)
+        
+        max_weights = []
+        min_weights = []
+        max_in_out = []
+        min_in_out = []
+
+        for name, module in self.named_modules():
+            if name[:5] == "first" or name[:5] == "depth" or name[:5] == "point":
+                max_weights.append(torch.zeros(module.out_channels))
+                min_weights.append(torch.zeros(module.out_channels))
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(1000))
+                min_in_out.append(torch.tensor(1000))
+            if name[:2] == "fc":
+                max_weights.append(torch.zeros(module.out_features))
+                min_weights.append(torch.zeros(module.out_features)) 
+                max_in_out.append(torch.tensor(0))
+                max_in_out.append(torch.tensor(0))
+                min_in_out.append(torch.tensor(1000))
+                min_in_out.append(torch.tensor(1000))  
+
+        self.register_buffer('max_weights', torch.cat(max_weights))
+        
+        self.register_buffer('min_weights', torch.cat(min_weights))
+
+        self.register_buffer('max_in_out', torch.stack(max_in_out))
+
+        self.register_buffer('min_in_out', torch.stack(min_in_out))
+
+        
+    def forward(self, x, save = False, quantized = False, scales_zeros = None, x_scale_zero = None):
+        if save:
+            if (self.test ==0):
+                self.test =1
+                print("Max: ",torch.max(x))
+                print("Min: ", torch.min(x))
+            self.set_max_min_in_out(x)
+            x = self.first_conv(x)
+            self.set_max_min_in_out(x)
+            x = self.relu1(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth1(x)
+            self.set_max_min_in_out(x)
+            x = self.relu2(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw1(x)
+            self.set_max_min_in_out(x)
+            x = self.relu3(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth2(x)
+            self.set_max_min_in_out(x)
+            x = self.relu4(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw2(x)
+            self.set_max_min_in_out(x)
+            x = self.relu5(x)
+            
+            self.set_max_min_in_out(x)
+            x = self.depth3(x)
+            self.set_max_min_in_out(x)
+            x = self.relu6(x)
+            self.set_max_min_in_out(x)
+            x = self.pointw3(x)
             self.set_max_min_in_out(x)
             x = self.relu7(x)
             
             self.set_max_min_in_out(x)
             x = self.depth4(x)
-            x = self.bn8(x)
             self.set_max_min_in_out(x)
             x = self.relu8(x)   
             self.set_max_min_in_out(x)
             x = self.pointw4(x)
-            x = self.bn9(x)
             self.set_max_min_in_out(x)
             x = self.relu9(x)   
             
@@ -500,6 +801,7 @@ class DSCNN_TE_3x3_49x10(torch.nn.Module):
             self.set_max_min_in_out(x, True)
 
         else:
+            #x = self.first_conv(x)
             x = self.first_conv(x)
             x = self.bn1(x)
             x = self.relu1(x)

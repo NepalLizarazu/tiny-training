@@ -27,7 +27,6 @@ def create_quantized_head(model_q):
     if not isinstance(model_q[-1], nn.Flatten):
         model_q = _append_flatten(model_q)
     sample_linear = nn.Conv2d(model_q[-2].in_channels, configs.data_provider.num_classes, 1)
-
     w_scales = get_weight_scales(sample_linear.weight.data, 8)
     w, b = get_quantized_weight_and_bias(sample_linear.weight.data, sample_linear.bias.data, w_scales,
                                          model_q[-2].x_scale, 8)
@@ -35,7 +34,7 @@ def create_quantized_head(model_q):
     org_op = model_q[-2]
     # here we do not have y_scale, so that the output has the same scale
     effective_scale = (model_q[-2].x_scale * w_scales).float()
-
+    print(type(model_q[-2]))
     model_q[-2] = QuantizedConv2dDiff(model_q[-2].in_channels, configs.data_provider.num_classes, 1,
                                       zero_x=model_q[-2].zero_x, zero_y=0,  # keep same args
                                       effective_scale=effective_scale,

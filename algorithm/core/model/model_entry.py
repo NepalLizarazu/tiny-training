@@ -13,7 +13,8 @@ def build_mcu_model():
     model = build_quantized_network_from_cfg(cfg, n_bit=8)
 
     if configs.net_config.mcu_head_type == 'quantized':
-        model = create_quantized_head(model)
+        print("Not modifying last layer")
+        #model = create_quantized_head(model)
     elif configs.net_config.mcu_head_type == 'fp':
         model = create_scaled_head(model, norm_feat=False)
     else:

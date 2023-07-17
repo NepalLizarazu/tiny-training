@@ -1,0 +1,17 @@
+{
+  "output_info": [
+    "fwd@output",
+    "v5_bias",
+    "v5_weight",
+    "v4_conv_1_bias",
+    "v4_conv_0_bias",
+    "v3_conv_1_bias",
+    "v3_conv_0_bias",
+    "v2_conv_1_bias",
+    "v2_conv_0_bias",
+    "v1_conv_1_bias",
+    "v1_conv_0_bias",
+    "v0_bias"
+  ],
+  "sparse_update_info": []
+}

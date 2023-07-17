@@ -11,14 +11,14 @@ from convert import (
 )
 
 # some configs
-model_name = "dscnn"
 model_name = "mbv2"
+model_name = "dscnn"
 #rs = 128
+#rs1 = 128
+#rs2 = 128
 rs1 = 49
 rs2 = 10
-rs1 = 128
-rs2 = 128
-n_in_channels = 3
+n_in_channels = 1
 num_classes = 10
 int8_bp = False
 
@@ -88,7 +88,7 @@ elif model_name == "dscnn":
     model, _ = build_quantized_dscnn(num_classes=num_classes)
     sparse_update_config = {
         "49kb": {
-            "enable_backward_config": 1, "n_bias_update": 5, "n_weight_update": 0, "weight_update_ratio": [1, 1, 0, 0, 0], "manual_weight_idx": [1, 2, 3, 4, 5], "weight_select_criteria": "magnitude+", "pw1_weight_only": 0,
+            "enable_backward_config": 1, "n_bias_update": 5, "n_weight_update": 0, "weight_update_ratio": [1, 1, 1, 1, 1], "manual_weight_idx": [5, 6, 7, 8, 9], "weight_select_criteria": "magnitude+", "pw1_weight_only": 0,
         },
     }
 fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, n_in_channels, rs1, rs2], num_classes=num_classes)
