@@ -7,7 +7,7 @@ __all__ = ['build_mcu_model']
 
 
 def build_mcu_model():
-    cfg_path = f"assets/mcu_models/{configs.net_config.net_name}.pkl"
+    cfg_path = f"C:/Users/HP/Desktop/Master_Thesis/tiny-training/algorithm/assets/mcu_models/{configs.net_config.net_name}.pkl"
     cfg = torch.load(cfg_path)
     
     model = build_quantized_network_from_cfg(cfg, n_bit=8)

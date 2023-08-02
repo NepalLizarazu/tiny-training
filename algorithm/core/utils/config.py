@@ -1,8 +1,10 @@
 import os
+import sys
 import yaml
 import argparse
 from easydict import EasyDict
 from typing import Union
+sys.path.append('../..')
 
 configs = EasyDict()
 

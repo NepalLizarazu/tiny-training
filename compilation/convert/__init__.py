@@ -2,6 +2,7 @@ from .load_mcunetv3 import (
     build_quantized_mcunet,
     build_quantized_mbv2,
     build_quantized_proxyless,
+    build_quantized_dscnn,
 )
 
 from .pth2ir import (

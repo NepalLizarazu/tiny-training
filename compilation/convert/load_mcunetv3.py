@@ -8,17 +8,35 @@ from torch.utils.data import DataLoader
 import tvm
 from tvm import relay
 
-from .mcunetv3_wrapper import (
-    build_mcu_model,
+sys.path.append('../../algorithm')
+sys.path.append('C:/Users/HP/Desktop/Master_Thesis/tiny-training')
+
+#from .mcunetv3_wrapper import (
+#    build_mcu_model,
+#    configs,
+#    load_config_from_file,
+#    update_config_from_args,
+#    update_config_from_unknown_args,
+#    QuantizedConv2dDiff,
+#    QuantizedMbBlockDiff,
+#    ScaledLinear,
+#    QuantizedAvgPoolDiff,
+#)
+
+from algorithm.core.model import build_mcu_model
+from algorithm.core.utils.config import (
     configs,
     load_config_from_file,
     update_config_from_args,
     update_config_from_unknown_args,
+)
+from algorithm.quantize.quantized_ops_diff import (
     QuantizedConv2dDiff,
     QuantizedMbBlockDiff,
     ScaledLinear,
     QuantizedAvgPoolDiff,
 )
+
 
 
 def build_quantized_model(net_name="mbv2-w0.35", num_classes=10):

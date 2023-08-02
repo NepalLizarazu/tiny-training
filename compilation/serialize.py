@@ -14,8 +14,8 @@ from tvm import relay
 from tvm.relay import ExprFunctor, ExprMutator, ExprVisitor
 from pprint import pprint
 
-from .mod import mod_load, mod_save, ComputeDAG
-from .utils import from_pytorch, convert_ir_var
+from mod import mod_load, mod_save, ComputeDAG
+from utils import from_pytorch, convert_ir_var
 
 
 class SerializeVisitor(ExprVisitor):
