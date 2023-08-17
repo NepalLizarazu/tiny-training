@@ -107,9 +107,9 @@ def translate_mod(
 if __name__ == "__main__":
     import os, sys
 
-    mod_path = "tmp/lenet/bias_only-1x1x32x32.ir"
+    #mod_path = "tmp/lenet/bias_only-1x1x32x32.ir"
+    #mod_path = "C:/Users/HP/Desktop/Master_Thesis/tiny-training/compilation/ir_zoos/mbv2_quantize/sparse_bp-49kb-1x3x128x128.ir"
     mod_path = "C:/Users/HP/Desktop/Master_Thesis/tiny-training/compilation/ir_zoos/dscnn/last_only-1x1x49x10.ir"
-    mod_path = "C:/Users/HP/Desktop/Master_Thesis/tiny-training/compilation/ir_zoos/mbv2_quantize/sparse_bp-49kb-1x3x128x128.ir"
     # mod_path = "tmp/lenet/weights.param"
 
     if len(sys.argv) >= 2:

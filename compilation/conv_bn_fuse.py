@@ -3,8 +3,8 @@ import copy
 from utils2 import remove_txt, parameter_generation
 import dataset
 from train import Train
-from model import DSCNN_TE_7x7_49x10
-from model import DSCNN_TE_3x3_49x10
+
+from model import DSCNN_TE_3x3_49x10 #This is the model used in pre-training
 
 def fuse_conv_bn_eval(conv, bn, transpose=False):
     #assert(not (conv.training or bn.training)), "Fusion only for eval!"
@@ -53,13 +53,11 @@ def reset_min_max_activations(model):
             model.min_in_out[i] = torch.tensor(1000.)
 
 if __name__ == '__main__':
-    file_name = "dscnn_40_pw_7x7_49x10_param"
-    file_name = "dscnn_40_pw_7x7_49x10_param_94.53125"
-    file_name = "dscnn_40_3x3_7x7_49x10_param_90.625"
-    param_path = "../../kws-on-pulp/quantization/"+file_name+".pth"
     
-    model = DSCNN_TE_7x7_49x10() #pw_7x7
-    model = DSCNN_TE_3x3_49x10() #3x3_7x7
+    file_name = "dscnn_40_3x3_7x7_49x10_param_90.625"
+    param_path = "../../kws-on-pulp/quantization/"+file_name+".pth" #The file can be a .pkl or .pth, make sure to change it in this line accordingly
+    
+    model = DSCNN_TE_3x3_49x10() #3x3 -> 7x7 // This model instance has to be the same used for pre-training
 
     device = torch.device('cpu')
     print (torch.version.__version__)
@@ -100,6 +98,7 @@ if __name__ == '__main__':
     reset_min_max_activations(model)
     trainining_environment.validate(model, 'validation', 128, register_min_max=True)
     torch.save(model.state_dict(), file_name+"_fused.pkl")
+    print("File saved as: "+file_name+"_fused.pkl")
     
 
     

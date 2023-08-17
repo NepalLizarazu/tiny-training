@@ -11,9 +11,7 @@ from convert import (
 )
 
 # some configs
-model_name = "mbv2"
 model_name = "dscnn"
-#rs = 128
 #rs1 = 128
 #rs2 = 128
 rs1 = 49
